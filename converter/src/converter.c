@@ -82,13 +82,13 @@ static const utf8_pattern utf8_leading_bytes[] =
 // When the function returns, this will be left at the index of the last character
 // that composes the returned codepoint.
 // For surrogate pairs, this means the index will be left at the low surrogate.
-static codepoint_t decode_utf16(utf16_t const* utf16, size_t len, size_t* index)
+static inline codepoint_t decode_utf16(utf16_t const* utf16, size_t len, size_t* index)
 {
     utf16_t high = utf16[*index];
 
     // BMP character
     if ((high & GENERIC_SURROGATE_MASK) != GENERIC_SURROGATE_VALUE)
-        return high; 
+        return high;
 
     // Unmatched low surrogate, invalid
     if ((high & SURROGATE_MASK) != HIGH_SURROGATE_VALUE)
@@ -97,7 +97,7 @@ static codepoint_t decode_utf16(utf16_t const* utf16, size_t len, size_t* index)
     // String ended with an unmatched high surrogate, invalid
     if (*index == len - 1)
         return INVALID_CODEPOINT;
-    
+
     utf16_t low = utf16[*index + 1];
 
     // Unmatched high surrogate, invalid
@@ -114,14 +114,14 @@ static codepoint_t decode_utf16(utf16_t const* utf16, size_t len, size_t* index)
     result <<= SURROGATE_CODEPOINT_BITS;
     result |= low & SURROGATE_CODEPOINT_MASK;
     result += SURROGATE_CODEPOINT_OFFSET;
-    
+
     // And if all else fails, it's valid
     return result;
 }
 
 // Calculates the number of UTF-8 characters it would take to encode a codepoint
 // The codepoint won't be checked for validity, that should be done beforehand.
-static int calculate_utf8_len(codepoint_t codepoint)
+static inline int calculate_utf8_len(codepoint_t codepoint)
 {
     // An array with the max values would be more elegant, but a bit too heavy
     // for this common function
@@ -147,7 +147,7 @@ static int calculate_utf8_len(codepoint_t codepoint)
 // index: The first empty index on the string.
 //
 // return: The number of characters written to the string.
-static size_t encode_utf8(codepoint_t codepoint, utf8_t* utf8, size_t len, size_t index)
+static inline size_t encode_utf8(codepoint_t codepoint, utf8_t* utf8, size_t len, size_t index)
 {
     int size = calculate_utf8_len(codepoint);
 
@@ -179,17 +179,26 @@ static size_t encode_utf8(codepoint_t codepoint, utf8_t* utf8, size_t len, size_
 size_t utf16_to_utf8(utf16_t const* utf16, size_t utf16_len, utf8_t* utf8, size_t utf8_len)
 {
     // The next codepoint that will be written in the UTF-8 string
-    // or the size of the required buffer if utf8 is NULL
     size_t utf8_index = 0;
 
     for (size_t utf16_index = 0; utf16_index < utf16_len; utf16_index++)
     {
         codepoint_t codepoint = decode_utf16(utf16, utf16_len, &utf16_index);
+        utf8_index += encode_utf8(codepoint, utf8, utf8_len, utf8_index);
+    }
 
-        if (utf8 == NULL)
-            utf8_index += calculate_utf8_len(codepoint);
-        else
-            utf8_index += encode_utf8(codepoint, utf8, utf8_len, utf8_index);
+    return utf8_index;
+}
+
+size_t utf16_to_utf8_size(utf16_t const* utf16, size_t utf16_len)
+{
+    // The size of the required buffer
+    size_t utf8_index = 0;
+
+    for (size_t utf16_index = 0; utf16_index < utf16_len; utf16_index++)
+    {
+        codepoint_t codepoint = decode_utf16(utf16, utf16_len, &utf16_index);
+        utf8_index += calculate_utf8_len(codepoint);
     }
 
     return utf8_index;
@@ -203,7 +212,7 @@ size_t utf16_to_utf8(utf16_t const* utf16, size_t utf16_len, utf8_t* utf8, size_
 // When the function returns, this will be left at the index of the last character
 // that composes the returned codepoint.
 // For example, for a 3-byte codepoint, the index will be left at the third character.
-static codepoint_t decode_utf8(utf8_t const* utf8, size_t len, size_t* index)
+static inline codepoint_t decode_utf8(utf8_t const* utf8, size_t len, size_t* index)
 {
     utf8_t leading = utf8[*index];
 
@@ -213,7 +222,7 @@ static codepoint_t decode_utf8(utf8_t const* utf8, size_t len, size_t* index)
     utf8_pattern leading_pattern;
     // If the leading byte matches the current leading pattern
     bool matches = false;
-    
+
     do
     {
         encoding_len++;
@@ -271,7 +280,7 @@ static codepoint_t decode_utf8(utf8_t const* utf8, size_t len, size_t* index)
 
 // Calculates the number of UTF-16 characters it would take to encode a codepoint
 // The codepoint won't be checked for validity, that should be done beforehand.
-static int calculate_utf16_len(codepoint_t codepoint)
+static inline int calculate_utf16_len(codepoint_t codepoint)
 {
     if (codepoint <= BMP_END)
         return 1;
@@ -288,7 +297,7 @@ static int calculate_utf16_len(codepoint_t codepoint)
 // index: The first empty index on the string.
 //
 // return: The number of characters written to the string.
-static size_t encode_utf16(codepoint_t codepoint, utf16_t* utf16, size_t len, size_t index)
+static inline size_t encode_utf16(codepoint_t codepoint, utf16_t* utf16, size_t len, size_t index)
 {
     // Not enough space on the string
     if (index >= len)
@@ -324,17 +333,28 @@ static size_t encode_utf16(codepoint_t codepoint, utf16_t* utf16, size_t len, si
 size_t utf8_to_utf16(utf8_t const* utf8, size_t utf8_len, utf16_t* utf16, size_t utf16_len)
 {
     // The next codepoint that will be written in the UTF-16 string
-    // or the size of the required buffer if utf16 is NULL
     size_t utf16_index = 0;
 
     for (size_t utf8_index = 0; utf8_index < utf8_len; utf8_index++)
     {
         codepoint_t codepoint = decode_utf8(utf8, utf8_len, &utf8_index);
 
-        if (utf16 == NULL)
-            utf16_index += calculate_utf16_len(codepoint);
-        else
-            utf16_index += encode_utf16(codepoint, utf16, utf16_len, utf16_index);
+        utf16_index += encode_utf16(codepoint, utf16, utf16_len, utf16_index);
+    }
+
+    return utf16_index;
+}
+
+size_t utf8_to_utf16_size(utf8_t const* utf8, size_t utf8_len)
+{
+    // The size of the required buffer
+    size_t utf16_index = 0;
+
+    for (size_t utf8_index = 0; utf8_index < utf8_len; utf8_index++)
+    {
+        codepoint_t codepoint = decode_utf8(utf8, utf8_len, &utf8_index);
+
+        utf16_index += calculate_utf16_len(codepoint);
     }
 
     return utf16_index;

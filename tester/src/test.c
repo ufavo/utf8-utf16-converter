@@ -94,7 +94,7 @@ static void print_time(double seconds)
 // buffer: Pointer to a variable that will receive the file content
 // buffer_len: Pointer to a variable that will receive the buffer length
 //
-// return: If the file was read successfully. 
+// return: If the file was read successfully.
 static bool read_file(char const* path, char** buffer, size_t* buffer_len)
 {
     FILE* file = fopen(path, "rb");
@@ -113,7 +113,7 @@ static bool read_file(char const* path, char** buffer, size_t* buffer_len)
         fprintf(stderr, "Unable to allocate enough memory to read file %s", path);
         return false;
     }
-        
+
 
     size_t read;
     do {
@@ -181,11 +181,11 @@ static bool write_file(char const* path, char const* buffer, size_t len)
     return true;
 }
 
-int main(int argc, char const* argv[]) 
+int main(int argc, char const* argv[])
 {
     if (argc < 4 || argc > 5)
         return help(argv[0]);
-    
+
     char const* mode = argv[1];
 
     bool is_utf8;
@@ -201,19 +201,19 @@ int main(int argc, char const* argv[])
     size_t input_len;
     if (!read_file(argv[2], &input, &input_len))
         return EXIT_FAILURE;
-    
+
     if (input_len == 0)
     {
         fprintf(stderr, "Input file is empty");
         return EXIT_FAILURE;
     }
-    
+
     char* output;
     size_t output_len;
     if (is_utf8)
-        output_len = sizeof(utf16_t) * utf8_to_utf16(input, input_len / sizeof(utf8_t), NULL, 0);
+        output_len = sizeof(utf16_t) * utf8_to_utf16_size((utf8_t *)input, input_len / sizeof(utf8_t));
     else
-        output_len = sizeof(utf8_t) * utf16_to_utf8(input, input_len / sizeof(utf16_t), NULL, 0);
+        output_len = sizeof(utf8_t) * utf16_to_utf8_size((utf16_t *)input, input_len / sizeof(utf16_t));
 
     output = malloc(output_len);
     if (output == NULL)
@@ -227,13 +227,13 @@ int main(int argc, char const* argv[])
     clock_t clock_start = clock();
 
     if (is_utf8)
-        utf8_to_utf16(input, input_len / sizeof(utf8_t), output, output_len / sizeof(utf16_t));
+        utf8_to_utf16((utf8_t *)input, input_len / sizeof(utf8_t), (utf16_t *)output, output_len / sizeof(utf16_t));
     else
-        utf16_to_utf8(input, input_len / sizeof(utf16_t), output, output_len / sizeof(utf8_t));
+        utf16_to_utf8((utf16_t *)input, input_len / sizeof(utf16_t), (utf8_t *)output, output_len / sizeof(utf8_t));
 
     time_t time_end = time(NULL);
     clock_t clock_end = clock();
-        
+
     free(input);
 
 
